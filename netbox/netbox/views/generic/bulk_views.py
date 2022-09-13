@@ -19,8 +19,10 @@ from extras.signals import clear_webhooks
 from utilities.error_handlers import handle_protectederror
 from utilities.exceptions import AbortRequest, PermissionsViolation
 from utilities.forms import (
-    BootstrapMixin, BulkRenameForm, ConfirmationForm, CSVDataField, CSVFileField, restrict_form_fields,
+    BootstrapMixin, BulkRenameForm, ConfirmationForm, CSVDataField, CSVFileField,
+    ImportForm, FileUploadImportForm, restrict_form_fields,
 )
+
 from utilities.htmx import is_htmx
 from utilities.permissions import get_permission_for_model
 from utilities.views import GetReturnURLMixin
@@ -286,7 +288,7 @@ class BulkCreateView(GetReturnURLMixin, BaseMultiObjectView):
         })
 
 
-class BulkImportView(GetReturnURLMixin, BaseMultiObjectView):
+class OldBulkImportView(GetReturnURLMixin, BaseMultiObjectView):
     """
     Import objects in bulk (CSV format).
 
@@ -412,6 +414,191 @@ class BulkImportView(GetReturnURLMixin, BaseMultiObjectView):
             'return_url': self.get_return_url(request),
             **self.get_extra_context(request),
         })
+
+
+class BulkImportView(GetReturnURLMixin, BaseMultiObjectView):
+    """
+    Import objects in bulk (CSV format).
+
+    Attributes:
+        model_form: The form used to create each imported object
+    """
+    template_name = 'generic/bulk_import.html'
+    model_form = None
+
+    '''
+    supported_formats = [
+        {
+            'name': 'CSV',
+            'help_text': 'Enter the list of column headers followed by one line per record to be imported, using ' \
+                         'commas to separate values. Multi-line data and values containing commas may be wrapped ' \
+                         'in double quotes.'
+        },
+        {'name': 'JSON', },
+        {'name': 'YAML', },
+    ]
+    '''
+
+    def _create_object(self, request, model_form):
+
+        # Save the primary object
+        obj = self._save_obj(model_form, request)
+
+        # Enforce object-level permissions
+        if not self.queryset.filter(pk=obj.pk).first():
+            raise PermissionsViolation()
+
+        # Iterate through the related object forms (if any), validating and saving each instance.
+        for field_name, related_object_form in self.related_object_forms.items():
+
+            related_obj_pks = []
+            for i, rel_obj_data in enumerate(model_form.data.get(field_name, list())):
+                rel_obj_data = self.prep_related_object_data(obj, rel_obj_data)
+                f = related_object_form(rel_obj_data)
+
+                for subfield_name, field in f.fields.items():
+                    if subfield_name not in rel_obj_data and hasattr(field, 'initial'):
+                        f.data[subfield_name] = field.initial
+
+                if f.is_valid():
+                    related_obj = f.save()
+                    related_obj_pks.append(related_obj.pk)
+                else:
+                    # Replicate errors on the related object form to the primary form for display
+                    for subfield_name, errors in f.errors.items():
+                        for err in errors:
+                            err_msg = "{}[{}] {}: {}".format(field_name, i, subfield_name, err)
+                            model_form.add_error(None, err_msg)
+                    raise AbortTransaction()
+
+            # Enforce object-level permissions on related objects
+            model = related_object_form.Meta.model
+            if model.objects.filter(pk__in=related_obj_pks).count() != len(related_obj_pks):
+                raise ObjectDoesNotExist
+
+        return obj
+
+    def _create_objects(self, form, request):
+        new_objs = []
+        for row_num, record in enumerate(data['data'], start=1):
+            if format == 'csv':
+                model_form = self.model_form(record, headers=headers)
+            else:
+                model_form = self.model_form(record)
+            restrict_form_fields(model_form, request.user)
+
+            if format == 'json' or format == 'yaml':
+                # Assign default values for any fields which were not specified.
+                # We have to do this manually because passing 'initial=' to the form
+                # on initialization merely sets default values for the widgets.
+                # Since widgets are not used for YAML/JSON import, we first bind the
+                # imported data normally, then update the form's data with the applicable
+                # field defaults as needed prior to form validation.
+                for field_name, field in model_form.fields.items():
+                    if field_name not in record and hasattr(field, 'initial'):
+                        model_form.data[field_name] = field.initial
+
+            if model_form.is_valid():
+                obj = self._create_object(request, model_form)
+                new_objs.append(obj)
+            else:
+                # Replicate model form errors for display
+                for field, errors in model_form.errors.items():
+                    for err in errors:
+                        if format == 'csv':
+                            form.add_error('csv', f'Row {row} {field}: {err[0]}')
+                        else:
+                            if field == '__all__':
+                                form.add_error(None, err)
+                            else:
+                                form.add_error(None, "{}: {}".format(field, err))
+
+                raise ValidationError("")
+
+        return new_objs
+
+    def _save_obj(self, obj_form, request):
+        """
+        Provide a hook to modify the object immediately before saving it (e.g. to encrypt secret data).
+        """
+        return obj_form.save()
+
+    def get_required_permission(self):
+        return get_permission_for_model(self.queryset.model, 'add')
+
+    #
+    # Request handlers
+    #
+
+    def get_context(self, request, data_form, file_form):
+        return {
+            'model': self.model_form._meta.model,
+            'data_form': data_form,
+            'file_form': file_form,
+            'fields': self.model_form().fields,
+            'return_url': self.get_return_url(request),
+            **self.get_extra_context(request),
+        }
+
+    def get(self, request):
+        data_form = ImportForm()
+        file_form = FileUploadImportForm()
+
+        return render(request, self.template_name, self.get_context(request, data_form, file_form))
+
+    def post(self, request):
+        logger = logging.getLogger('netbox.views.BulkImportView')
+        data_form = ImportForm(request.POST)
+        file_form = FileUploadImportForm(request.POST, request.FILES)
+
+        data = None
+        if 'data_submit' in request.POST:
+            if data_form.is_valid():
+                logger.debug("Data Import form validation was successful")
+                data = data_form.cleaned_data
+        elif 'file_submit' in request.POST:
+            if file_form.is_valid():
+                logger.debug("File Import form validation was successful")
+                data = file_form.cleaned_data
+
+        if data:
+            format = data['format']
+            headers = data['headers'] if format == 'csv' else None
+
+            try:
+                # Iterate through data and bind each row to a new model form instance.
+                with transaction.atomic():
+                    new_objs = self._create_objects(form, request)
+
+                    # Enforce object-level permissions
+                    if self.queryset.filter(pk__in=[obj.pk for obj in new_objs]).count() != len(new_objs):
+                        raise PermissionsViolation
+
+                # Compile a table containing the imported objects
+                obj_table = self.table(new_objs)
+
+                if new_objs:
+                    msg = 'Imported {} {}'.format(len(new_objs), new_objs[0]._meta.verbose_name_plural)
+                    logger.info(msg)
+                    messages.success(request, msg)
+
+                    return render(request, "import_success.html", {
+                        'table': obj_table,
+                        'return_url': self.get_return_url(request),
+                    })
+
+            except ValidationError:
+                clear_webhooks.send(sender=self)
+
+            except (AbortRequest, PermissionsViolation) as e:
+                logger.debug(e.message)
+                form.add_error(None, e.message)
+                clear_webhooks.send(sender=self)
+
+        else:
+            logger.debug("Form validation failed")
+
+        return render(request, self.template_name, self.get_context(request, data_form, file_form))
 
 
 class BulkEditView(GetReturnURLMixin, BaseMultiObjectView):

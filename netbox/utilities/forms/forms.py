@@ -1,11 +1,12 @@
 import json
 import re
+from io import StringIO
 
 import yaml
 from django import forms
+from utilities.forms.utils import parse_csv, validate_csv
 
 from .widgets import APISelect, APISelectMultiple, ClearableFileInput, StaticSelect
-
 
 __all__ = (
     'BootstrapMixin',
@@ -15,6 +16,7 @@ __all__ = (
     'CSVModelForm',
     'FilterForm',
     'ImportForm',
+    'FileUploadImportForm',
     'ReturnURLForm',
     'TableConfigForm',
 )
@@ -131,7 +133,7 @@ class CSVModelForm(forms.ModelForm):
                     self.fields[field].to_field_name = to_field
 
 
-class ImportForm(BootstrapMixin, forms.Form):
+class OldImportForm(BootstrapMixin, forms.Form):
     """
     Generic form for creating an object from JSON/YAML data
     """
@@ -178,6 +180,92 @@ class ImportForm(BootstrapMixin, forms.Form):
                 raise forms.ValidationError({
                     'data': "Invalid YAML data: {}".format(err)
                 })
+
+
+class BaseImportForm(BootstrapMixin, forms.Form):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['format'].choices = self.get_supported_formats()
+
+    def get_supported_formats(self):
+        return (
+            ('csv', 'CSV'),
+            ('json', 'JSON'),
+            ('yaml', 'YAML')
+        )
+
+    def convert_data(self, data):
+        format = self.cleaned_data['format']
+        stream = StringIO(data.strip())
+
+        # Process data
+        if format == 'csv':
+            reader = csv.reader(stream)
+            headers, records = parse_csv(reader)
+            self.cleaned_data['data'] = records
+            self.cleaned_data['headers'] = headers
+        elif format == 'json':
+            try:
+                self.cleaned_data['data'] = json.loads(data)
+            except json.decoder.JSONDecodeError as err:
+                raise forms.ValidationError({
+                    'data': f"Invalid JSON data: {err}"
+                })
+        elif format == 'yaml':
+            try:
+                self.cleaned_data['data'] = yaml.load_all(data, Loader=yaml.SafeLoader)
+            except yaml.error.YAMLError as err:
+                raise forms.ValidationError({
+                    'data': f"Invalid YAML data: {err}"
+                })
+        else:
+            raise forms.ValidationError({
+                'data': f"Invalid file format: {format}"
+            })
+
+
+class ImportForm(BaseImportForm):
+    """
+    Generic form for creating an object from JSON/YAML data
+    """
+    data = forms.CharField(
+        widget=forms.Textarea(attrs={'class': 'font-monospace'}),
+        help_text="Enter object data in CSV, JSON or YAML format."
+    )
+    format = forms.ChoiceField(
+        choices=(),
+        initial='csv'
+    )
+
+    def clean(self):
+        super().clean()
+
+        data = self.cleaned_data['data'] if 'data' in self.cleaned_data else None
+        self.convert_data(data)
+
+
+class FileUploadImportForm(BaseImportForm):
+    """
+    Generic form for creating an object from JSON/YAML data
+    """
+    data_file = forms.FileField(
+        label="data file",
+        required=False
+    )
+
+    format = forms.ChoiceField(
+        choices=(),
+        initial='csv'
+    )
+
+    def clean(self):
+        super().clean()
+
+        file = self.files.get('data_file')
+
+        data = file.read().decode('utf-8')
+        self.convert_data()
 
 
 class FilterForm(BootstrapMixin, forms.Form):

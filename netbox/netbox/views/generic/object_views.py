@@ -212,8 +212,10 @@ class ObjectImportView(GetReturnURLMixin, BaseObjectView):
 
     def get(self, request):
         form = ImportForm()
+        model = self.queryset.model
 
         return render(request, self.template_name, {
+            'model': model,
             'form': form,
             'obj_type': self.queryset.model._meta.verbose_name,
             'return_url': self.get_return_url(request),
@@ -279,6 +281,7 @@ class ObjectImportView(GetReturnURLMixin, BaseObjectView):
             logger.debug("Import form validation failed")
 
         return render(request, self.template_name, {
+            'model': model,
             'form': form,
             'obj_type': self.queryset.model._meta.verbose_name,
             'return_url': self.get_return_url(request),
