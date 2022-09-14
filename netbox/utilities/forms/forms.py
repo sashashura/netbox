@@ -213,7 +213,7 @@ class FileUploadImportForm(BaseImportForm):
         file = self.files.get('data_file')
 
         data = file.read().decode('utf-8')
-        self.convert_data()
+        self.convert_data(data)
 
 
 class FilterForm(BootstrapMixin, forms.Form):
