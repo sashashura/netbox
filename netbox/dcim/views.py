@@ -1084,6 +1084,7 @@ class ModuleTypeImportView(generic.BulkImportView):
     queryset = ModuleType.objects.all()
     model_form = forms.ModuleTypeImportForm
     table = tables.ModuleTypeTable
+    supported_import_formats = ['json', 'yaml']
     related_object_forms = {
         'console-ports': forms.ConsolePortTemplateImportForm,
         'console-server-ports': forms.ConsoleServerPortTemplateImportForm,
