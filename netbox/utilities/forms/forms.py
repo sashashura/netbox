@@ -7,6 +7,7 @@ import yaml
 from django import forms
 from utilities.forms.utils import parse_csv, validate_csv
 
+from .choices import ImportFormatChoices, ImportFormatChoicesRelated
 from .widgets import APISelect, APISelectMultiple, ClearableFileInput, StaticSelect
 
 __all__ = (
@@ -137,8 +138,11 @@ class CSVModelForm(forms.ModelForm):
 class BaseImportForm(BootstrapMixin, forms.Form):
 
     def __init__(self, *args, **kwargs):
+        related = kwargs.pop("related", False)
         super().__init__(*args, **kwargs)
-        self.fields['format'].choices = self.get_supported_formats()
+        if related:
+            self.fields['format'].choices = ImportFormatChoicesRelated.CHOICES
+            self.fields['format'].initial = ImportFormatChoicesRelated.YAML
 
     def get_supported_formats(self):
         return (
@@ -152,19 +156,19 @@ class BaseImportForm(BootstrapMixin, forms.Form):
         stream = StringIO(data.strip())
 
         # Process data
-        if format == 'csv':
+        if format == ImportFormatChoices.CSV:
             reader = csv.reader(stream)
             headers, records = parse_csv(reader)
             self.cleaned_data['data'] = records
             self.cleaned_data['headers'] = headers
-        elif format == 'json':
+        elif format == ImportFormatChoices.JSON:
             try:
                 self.cleaned_data['data'] = json.loads(data)
             except json.decoder.JSONDecodeError as err:
                 raise forms.ValidationError({
                     'data': f"Invalid JSON data: {err}"
                 })
-        elif format == 'yaml':
+        elif format == ImportFormatChoices.YAML:
             try:
                 self.cleaned_data['data'] = yaml.load_all(data, Loader=yaml.SafeLoader)
             except yaml.error.YAMLError as err:
@@ -186,8 +190,8 @@ class ImportForm(BaseImportForm):
         help_text="Enter object data in CSV, JSON or YAML format."
     )
     format = forms.ChoiceField(
-        choices=(),
-        initial='csv'
+        choices=ImportFormatChoices.CHOICES,
+        initial=ImportFormatChoices.CSV
     )
 
     def clean(self):
@@ -205,10 +209,9 @@ class FileUploadImportForm(BaseImportForm):
         label="data file",
         required=False
     )
-
     format = forms.ChoiceField(
-        choices=(),
-        initial='csv'
+        choices=ImportFormatChoices.CHOICES,
+        initial=ImportFormatChoices.CSV
     )
 
     def clean(self):

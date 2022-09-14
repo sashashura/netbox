@@ -410,11 +410,13 @@ class BulkImportView(GetReturnURLMixin, BaseMultiObjectView):
     # Request handlers
     #
 
-    def get_context(self, request, data_form, file_form):
+    def get_context(self, request, data_form, file_form, form=None):
+        # small hack - need to return 'form' set to either the file or data form
+        # as the bulk_import base view relies on it for error reporting.
         return {
             'model': self.model_form._meta.model,
             'data_form': data_form,
-            'form': data_form,
+            'form': form,
             'file_form': file_form,
             'fields': self.model_form().fields,
             'return_url': self.get_return_url(request),
@@ -422,17 +424,18 @@ class BulkImportView(GetReturnURLMixin, BaseMultiObjectView):
         }
 
     def get(self, request):
-        data_form = ImportForm()
-        file_form = FileUploadImportForm()
+        data_form = ImportForm(related=self.related_object_forms)
+        file_form = FileUploadImportForm(related=self.related_object_forms)
 
         return render(request, self.template_name, self.get_context(request, data_form, file_form))
 
     def post(self, request):
         logger = logging.getLogger('netbox.views.BulkImportView')
-        data_form = ImportForm(request.POST)
-        file_form = FileUploadImportForm(request.POST, request.FILES)
+        data_form = ImportForm(request.POST, related=self.related_object_forms)
+        file_form = FileUploadImportForm(request.POST, request.FILES, related=self.related_object_forms)
 
         data = None
+        form = None
         if 'data_submit' in request.POST:
             form = data_form
             if data_form.is_valid():
@@ -480,7 +483,7 @@ class BulkImportView(GetReturnURLMixin, BaseMultiObjectView):
         else:
             logger.debug("Form validation failed")
 
-        return render(request, self.template_name, self.get_context(request, data_form, file_form))
+        return render(request, self.template_name, self.get_context(request, data_form, file_form, form))
 
 
 class BulkEditView(GetReturnURLMixin, BaseMultiObjectView):
