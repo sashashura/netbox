@@ -424,16 +424,16 @@ class BulkImportView(GetReturnURLMixin, BaseMultiObjectView):
 
         data = None
         form = None
-        if 'data_submit' in request.POST:
-            form = data_form
-            if data_form.is_valid():
-                logger.debug("Data Import form validation was successful")
-                data = data_form.cleaned_data
-        elif 'file_submit' in request.POST:
+        if 'file_submit' in request.POST:
             form = file_form
             if file_form.is_valid():
                 logger.debug("File Import form validation was successful")
                 data = file_form.cleaned_data
+        else:  # data_submit
+            form = data_form
+            if data_form.is_valid():
+                logger.debug("Data Import form validation was successful")
+                data = data_form.cleaned_data
 
         if data:
             format = data['format']
