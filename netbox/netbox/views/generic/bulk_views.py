@@ -26,6 +26,7 @@ from utilities.forms import (
 from utilities.htmx import is_htmx
 from utilities.permissions import get_permission_for_model
 from utilities.views import GetReturnURLMixin
+from utilities.forms.choices import ImportFormatChoices
 from .base import BaseMultiObjectView
 from .mixins import ActionsMixin, TableMixin
 from .utils import get_prerequisite_model
@@ -299,19 +300,6 @@ class BulkImportView(GetReturnURLMixin, BaseMultiObjectView):
     model_form = None
     related_object_forms = dict()
 
-    '''
-    supported_formats = [
-        {
-            'name': 'CSV',
-            'help_text': 'Enter the list of column headers followed by one line per record to be imported, using ' \
-                         'commas to separate values. Multi-line data and values containing commas may be wrapped ' \
-                         'in double quotes.'
-        },
-        {'name': 'JSON', },
-        {'name': 'YAML', },
-    ]
-    '''
-
     def prep_related_object_data(self, parent, data):
         """
         Hook to modify the data for related objects before it's passed to the related object form (for example, to
@@ -361,13 +349,13 @@ class BulkImportView(GetReturnURLMixin, BaseMultiObjectView):
     def _create_objects(self, form, format, data, request):
         new_objs = []
         for row_num, record in enumerate(data['data'], start=1):
-            if format == 'csv':
+            if format == ImportFormatChoices.CSV:
                 model_form = self.model_form(record, headers=data['headers'])
             else:
                 model_form = self.model_form(record)
             restrict_form_fields(model_form, request.user)
 
-            if format == 'json' or format == 'yaml':
+            if format == ImportFormatChoices.JSON or format == ImportFormatChoices.YAML:
                 # Assign default values for any fields which were not specified.
                 # We have to do this manually because passing 'initial=' to the form
                 # on initialization merely sets default values for the widgets.
@@ -385,7 +373,7 @@ class BulkImportView(GetReturnURLMixin, BaseMultiObjectView):
                 # Replicate model form errors for display
                 for field, errors in model_form.errors.items():
                     for err in errors:
-                        if format == 'csv':
+                        if format == ImportFormatChoices.CSV:
                             form.add_error(None, f'Row {row_num} {field}: {err}')
                         else:
                             if field == '__all__':

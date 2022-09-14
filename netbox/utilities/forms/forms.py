@@ -144,13 +144,6 @@ class BaseImportForm(BootstrapMixin, forms.Form):
             self.fields['format'].choices = ImportFormatChoicesRelated.CHOICES
             self.fields['format'].initial = ImportFormatChoicesRelated.YAML
 
-    def get_supported_formats(self):
-        return (
-            ('csv', 'CSV'),
-            ('json', 'JSON'),
-            ('yaml', 'YAML')
-        )
-
     def convert_data(self, data):
         format = self.cleaned_data['format']
         stream = StringIO(data.strip())
