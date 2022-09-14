@@ -144,6 +144,10 @@ class BaseImportForm(BootstrapMixin, forms.Form):
             self.fields['format'].choices = ImportFormatChoicesRelated.CHOICES
             self.fields['format'].initial = ImportFormatChoicesRelated.YAML
 
+    @property
+    def data_field(self):
+        return 'data'
+
     def convert_data(self, data):
         format = self.cleaned_data['format']
         stream = StringIO(data.strip())
@@ -159,18 +163,18 @@ class BaseImportForm(BootstrapMixin, forms.Form):
                 self.cleaned_data['data'] = json.loads(data)
             except json.decoder.JSONDecodeError as err:
                 raise forms.ValidationError({
-                    'data': f"Invalid JSON data: {err}"
+                    self.data_field: f"Invalid JSON data: {err}"
                 })
         elif format == ImportFormatChoices.YAML:
             try:
                 self.cleaned_data['data'] = yaml.load_all(data, Loader=yaml.SafeLoader)
             except yaml.error.YAMLError as err:
                 raise forms.ValidationError({
-                    'data': f"Invalid YAML data: {err}"
+                    self.data_field: f"Invalid YAML data: {err}"
                 })
         else:
             raise forms.ValidationError({
-                'data': f"Invalid file format: {format}"
+                self.data_field: f"Invalid file format: {format}"
             })
 
 
@@ -206,6 +210,10 @@ class FileUploadImportForm(BaseImportForm):
         choices=ImportFormatChoices.CHOICES,
         initial=ImportFormatChoices.CSV
     )
+
+    @property
+    def data_field(self):
+        return 'data_file'
 
     def clean(self):
         super().clean()
