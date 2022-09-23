@@ -307,6 +307,17 @@ class RackBulkEditForm(NetBoxModelBulkEditForm):
         'location', 'tenant', 'role', 'serial', 'asset_tag', 'outer_width', 'outer_depth', 'outer_unit', 'comments', 'weight'
     )
 
+    def clean(self):
+        super().clean()
+
+        # Validate weight/unit
+        weight = self.cleaned_data.get('weight')
+        weight_unit = self.cleaned_data.get('weight_unit')
+        if weight and not weight_unit:
+            raise forms.ValidationError({
+                'weight_unit': "Must specify a unit when setting weight"
+            })
+
 
 class RackReservationBulkEditForm(NetBoxModelBulkEditForm):
     user = forms.ModelChoiceField(
@@ -384,6 +395,17 @@ class DeviceTypeBulkEditForm(NetBoxModelBulkEditForm):
     )
     nullable_fields = ('part_number', 'airflow', 'weight')
 
+    def clean(self):
+        super().clean()
+
+        # Validate weight/unit
+        weight = self.cleaned_data.get('weight')
+        weight_unit = self.cleaned_data.get('weight_unit')
+        if weight and not weight_unit:
+            raise forms.ValidationError({
+                'weight_unit': "Must specify a unit when setting weight"
+            })
+
 
 class ModuleTypeBulkEditForm(NetBoxModelBulkEditForm):
     manufacturer = DynamicModelChoiceField(
@@ -410,6 +432,17 @@ class ModuleTypeBulkEditForm(NetBoxModelBulkEditForm):
         ('Attributes', ('weight', 'weight_unit')),
     )
     nullable_fields = ('part_number', 'weight',)
+
+    def clean(self):
+        super().clean()
+
+        # Validate weight/unit
+        weight = self.cleaned_data.get('weight')
+        weight_unit = self.cleaned_data.get('weight_unit')
+        if weight and not weight_unit:
+            raise forms.ValidationError({
+                'weight_unit': "Must specify a unit when setting weight"
+            })
 
 
 class DeviceRoleBulkEditForm(NetBoxModelBulkEditForm):
