@@ -382,12 +382,23 @@ class ModuleTypeBulkEditForm(NetBoxModelBulkEditForm):
     part_number = forms.CharField(
         required=False
     )
+    weight = forms.DecimalField(
+        min_value=0,
+        required=False
+    )
+    weight_unit = forms.ChoiceField(
+        choices=add_blank_choice(DeviceWeightUnitChoices),
+        required=False,
+        initial='',
+        widget=StaticSelect()
+    )
 
     model = ModuleType
     fieldsets = (
         (None, ('manufacturer', 'part_number')),
+        ('Attributes', ('weight', 'weight_unit')),
     )
-    nullable_fields = ('part_number',)
+    nullable_fields = ('part_number', 'weight',)
 
 
 class DeviceRoleBulkEditForm(NetBoxModelBulkEditForm):
