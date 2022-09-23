@@ -1,3 +1,4 @@
+from django.core.exceptions import ValidationError
 from django.db import models
 from dcim.choices import *
 from utilities.utils import to_kilograms
@@ -35,3 +36,12 @@ class DeviceWeightMixin(models.Model):
             self._abs_weight = None
 
         super().save(*args, **kwargs)
+
+    def clean(self):
+        super().clean()
+
+        # Validate weight and weight_unit
+        if self.weight is not None and not self.weight_unit:
+            raise ValidationError("Must specify a unit when setting a weight")
+        elif self.weight is None:
+            self.weight_unit = ''
