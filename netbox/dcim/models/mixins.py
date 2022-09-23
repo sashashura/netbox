@@ -16,10 +16,10 @@ class DeviceWeightMixin(models.Model):
         choices=DeviceWeightUnitChoices,
         blank=True,
     )
-    # Stores the normalized length (in meters) for database ordering
+    # Stores the normalized weight (in kilograms) for database ordering
     _abs_weight = models.DecimalField(
         max_digits=10,
-        decimal_places=4,
+        decimal_places=2,
         blank=True,
         null=True
     )

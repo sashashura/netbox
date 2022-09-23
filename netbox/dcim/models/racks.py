@@ -453,8 +453,9 @@ class Rack(NetBoxModel, DeviceWeightMixin):
     def get_total_weight(self):
         total_weight = sum(device.device_type._abs_weight for device in self.devices.exclude(device_type___abs_weight__isnull=True).prefetch_related('device_type'))
         total_weight += sum(module.module_type._abs_weight for module in Module.objects.filter(device__rack=self).exclude(module_type___abs_weight__isnull=True).prefetch_related('module_type'))
-        total_weight += self._abs_weight
-        return total_weight
+        if self._abs_weight:
+            total_weight += self._abs_weight
+        return round(total_weight, 2)
 
 
 class RackReservation(NetBoxModel):
