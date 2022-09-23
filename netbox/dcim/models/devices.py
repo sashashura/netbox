@@ -20,6 +20,7 @@ from netbox.models import OrganizationalModel, NetBoxModel
 from utilities.choices import ColorChoices
 from utilities.fields import ColorField, NaturalOrderingField
 from .device_components import *
+from .mixins import DeviceWeightMixin
 
 
 __all__ = (
@@ -70,7 +71,7 @@ class Manufacturer(OrganizationalModel):
         return reverse('dcim:manufacturer', args=[self.pk])
 
 
-class DeviceType(NetBoxModel):
+class DeviceType(NetBoxModel, DeviceWeightMixin):
     """
     A DeviceType represents a particular make (Manufacturer) and model of device. It specifies rack height and depth, as
     well as high-level functional role(s).
@@ -308,7 +309,7 @@ class DeviceType(NetBoxModel):
         return self.subdevice_role == SubdeviceRoleChoices.ROLE_CHILD
 
 
-class ModuleType(NetBoxModel):
+class ModuleType(NetBoxModel, DeviceWeightMixin):
     """
     A ModuleType represents a hardware element that can be installed within a device and which houses additional
     components; for example, a line card within a chassis-based switch such as the Cisco Catalyst 6500. Like a

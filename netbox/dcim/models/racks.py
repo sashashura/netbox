@@ -20,6 +20,7 @@ from utilities.fields import ColorField, NaturalOrderingField
 from utilities.utils import array_to_string, drange
 from .device_components import PowerOutlet, PowerPort
 from .devices import Device
+from .mixins import DeviceWeightMixin
 from .power import PowerFeed
 
 __all__ = (
@@ -63,7 +64,7 @@ class RackRole(OrganizationalModel):
         return reverse('dcim:rackrole', args=[self.pk])
 
 
-class Rack(NetBoxModel):
+class Rack(NetBoxModel, DeviceWeightMixin):
     """
     Devices are housed within Racks. Each rack has a defined height measured in rack units, and a front and rear face.
     Each Rack is assigned to a Site and (optionally) a Location.
@@ -448,6 +449,11 @@ class Rack(NetBoxModel):
         ])
 
         return int(allocated_draw / available_power_total * 100)
+
+    def get_total_weight(self):
+        total_weight = sum(device._abs_weight for device in self.devices.exclude(_abs_weight__isnull=True))
+        total_weight += self._abs_weight
+        return total_weight
 
 
 class RackReservation(NetBoxModel):

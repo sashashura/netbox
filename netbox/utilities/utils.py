@@ -270,6 +270,38 @@ def to_meters(length, unit):
     raise ValueError(f"Unknown unit {unit}. Must be 'km', 'm', 'cm', 'mi', 'ft', or 'in'.")
 
 
+def to_kilograms(weight, unit):
+    """
+    Convert the given length to kilograms.
+    """
+    try:
+        if weight < 0:
+            raise ValueError("Weight must be a positive number")
+    except TypeError:
+        raise TypeError(f"Invalid value '{weight}' for weight (must be a number)")
+
+    valid_units = DeviceWeightUnitChoices.values()
+    if unit not in valid_units:
+        raise ValueError(f"Unknown unit {unit}. Must be one of the following: {', '.join(valid_units)}")
+
+    UNIT_KILOGRAM = 'kg'
+    UNIT_GRAM = 'g'
+
+    # Imperial
+    UNIT_POUND = 'lb'
+    UNIT_OUNCE = 'oz'
+
+    if unit == DeviceWeightUnitChoices.UNIT_KILOGRAM:
+        return weight
+    if unit == DeviceWeightUnitChoices.UNIT_GRAM:
+        return weight * 1000
+    if unit == DeviceWeightUnitChoices.UNIT_POUND:
+        return weight * Decimal(0.453592)
+    if unit == DeviceWeightUnitChoices.UNIT_OUNCE:
+        return weight * Decimal(0.0283495)
+    raise ValueError(f"Unknown unit {unit}. Must be 'kg', 'g', 'lb', 'oz'.")
+
+
 def render_jinja2(template_code, context):
     """
     Render a Jinja2 template with the provided context. Return the rendered content.
