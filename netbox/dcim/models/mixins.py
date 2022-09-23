@@ -30,7 +30,7 @@ class DeviceWeightMixin(models.Model):
 
         # Store the given weight (if any) in meters for use in database ordering
         if self.weight and self.weight_unit:
-            self._abs_weight = to_kilograms(self.length, self.length_unit)
+            self._abs_weight = to_kilograms(self.weight, self.weight_unit)
         else:
             self._abs_weight = None
 
