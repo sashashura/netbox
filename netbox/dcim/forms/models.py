@@ -363,6 +363,7 @@ class DeviceTypeForm(NetBoxModelForm):
         ('Chassis', (
             'u_height', 'is_full_depth', 'subdevice_role', 'airflow',
         )),
+        ('Attributes', ('weight', 'weight_unit')),
         ('Images', ('front_image', 'rear_image')),
     )
 
@@ -370,7 +371,7 @@ class DeviceTypeForm(NetBoxModelForm):
         model = DeviceType
         fields = [
             'manufacturer', 'model', 'slug', 'part_number', 'u_height', 'is_full_depth', 'subdevice_role', 'airflow',
-            'front_image', 'rear_image', 'comments', 'tags',
+            'weight', 'weight_unit', 'front_image', 'rear_image', 'comments', 'tags',
         ]
         widgets = {
             'subdevice_role': StaticSelect(),
@@ -379,7 +380,8 @@ class DeviceTypeForm(NetBoxModelForm):
             }),
             'rear_image': ClearableFileInput(attrs={
                 'accept': DEVICETYPE_IMAGE_FORMATS
-            })
+            }),
+            'weight_unit': StaticSelect(),
         }
 
 
@@ -391,15 +393,19 @@ class ModuleTypeForm(NetBoxModelForm):
 
     fieldsets = (
         ('Module Type', (
-            'manufacturer', 'model', 'part_number', 'tags',
+            'manufacturer', 'model', 'part_number', 'tags', 'weight', 'weight_unit'
         )),
     )
 
     class Meta:
         model = ModuleType
         fields = [
-            'manufacturer', 'model', 'part_number', 'comments', 'tags',
+            'manufacturer', 'model', 'part_number', 'comments', 'tags', 'weight', 'weight_unit'
         ]
+
+        widgets = {
+            'weight_unit': StaticSelect(),
+        }
 
 
 class DeviceRoleForm(NetBoxModelForm):

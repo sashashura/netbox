@@ -19,7 +19,7 @@ from utilities.choices import ColorChoices
 from utilities.fields import ColorField, NaturalOrderingField
 from utilities.utils import array_to_string, drange
 from .device_components import PowerOutlet, PowerPort
-from .devices import Device
+from .devices import Device, Module
 from .mixins import DeviceWeightMixin
 from .power import PowerFeed
 
@@ -451,7 +451,8 @@ class Rack(NetBoxModel, DeviceWeightMixin):
         return int(allocated_draw / available_power_total * 100)
 
     def get_total_weight(self):
-        total_weight = sum(device._abs_weight for device in self.devices.exclude(_abs_weight__isnull=True))
+        total_weight = sum(device.device_type._abs_weight for device in self.devices.exclude(device_type___abs_weight__isnull=True).prefetch_related('device_type'))
+        total_weight += sum(module.module_type._abs_weight for module in Module.objects.filter(device=self).exclude(module_type___abs_weight__isnull=True).prefetch_related('module_type'))
         total_weight += self._abs_weight
         return total_weight
 

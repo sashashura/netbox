@@ -1328,7 +1328,7 @@ class DeviceWeightUnitChoices(ChoiceSet):
         (UNIT_KILOGRAM, 'Kilograms'),
         (UNIT_GRAM, 'Grams'),
         (UNIT_POUND, 'Pounds'),
-        (UNIT_OUNCE, 'Ounce'),
+        (UNIT_OUNCE, 'Ounces'),
     )
 
 
